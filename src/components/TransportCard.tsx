@@ -3,25 +3,14 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, IndianRupee, MapPin, Navigation, Bus, Car, Truck } from 'lucide-react';
-
-interface TransportOption {
-  id: string;
-  type: 'bus' | 'auto' | 'cab';
-  name: string;
-  from: string;
-  to: string;
-  price: number;
-  duration: string;
-  nextAvailable: string;
-  stands: string[];
-  route: string;
-}
+import { Vehicle } from '@/services/api';
 
 interface TransportCardProps {
-  transport: TransportOption;
+  transport: Vehicle;
+  showRoute?: boolean;
 }
 
-const TransportCard: React.FC<TransportCardProps> = ({ transport }) => {
+const TransportCard: React.FC<TransportCardProps> = ({ transport, showRoute = false }) => {
   const getTransportIcon = () => {
     switch (transport.type) {
       case 'bus':
@@ -49,11 +38,21 @@ const TransportCard: React.FC<TransportCardProps> = ({ transport }) => {
   };
 
   const getAvailabilityColor = () => {
-    const minutes = parseInt(transport.nextAvailable);
+    const minutes = parseInt(transport.next_available);
     if (minutes <= 3) return 'text-success';
     if (minutes <= 8) return 'text-warning';
     return 'text-muted-foreground';
   };
+
+  // Extract from and to locations from route
+  const getRouteEndpoints = () => {
+    const routeParts = transport.route.split('→');
+    const from = routeParts[0]?.trim() || 'Unknown';
+    const to = routeParts[routeParts.length - 1]?.trim() || 'Unknown';
+    return { from, to };
+  };
+
+  const { from, to } = getRouteEndpoints();
 
   return (
     <Card className="hover:shadow-md transition-shadow duration-200">
@@ -70,7 +69,7 @@ const TransportCard: React.FC<TransportCardProps> = ({ transport }) => {
           </div>
           <Badge variant="outline" className={`${getAvailabilityColor()}`}>
             <Clock className="h-3 w-3 mr-1" />
-            {transport.nextAvailable}
+            {transport.next_available}
           </Badge>
         </div>
       </CardHeader>
@@ -81,9 +80,9 @@ const TransportCard: React.FC<TransportCardProps> = ({ transport }) => {
           <MapPin className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center space-x-2 text-sm">
-              <span className="font-medium">{transport.from}</span>
+              <span className="font-medium">{from}</span>
               <span className="text-muted-foreground">→</span>
-              <span className="font-medium">{transport.to}</span>
+              <span className="font-medium">{to}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">{transport.route}</p>
           </div>

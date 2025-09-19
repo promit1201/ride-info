@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Clock, IndianRupee, Navigation } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, MapPin, Clock, IndianRupee, Navigation, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,55 +7,44 @@ import { Badge } from '@/components/ui/badge';
 import AuthModal from '@/components/AuthModal';
 import TransportCard from '@/components/TransportCard';
 import SearchHeader from '@/components/SearchHeader';
+import { authService, type AuthUser } from '@/services/auth';
+import { useNavigate } from 'react-router-dom';
+import { Vehicle } from '@/services/api';
 
 // Mock data for transport options
-const transportOptions: Array<{
-  id: string;
-  type: 'bus' | 'auto' | 'cab';
-  name: string;
-  from: string;
-  to: string;
-  price: number;
-  duration: string;
-  nextAvailable: string;
-  stands: string[];
-  route: string;
-}> = [
+const transportOptions: Vehicle[] = [
   {
     id: '1',
     type: 'bus' as const,
     name: 'City Bus Route 42',
-    from: 'Central Station',
-    to: 'University Campus',
+    route: 'Central Station → Market Square → Hospital Junction → University Campus',
+    current_location: { lat: 12.9716, lng: 77.5946 },
     price: 15,
     duration: '25 mins',
-    nextAvailable: '5 mins',
-    stands: ['Central Bus Stand', 'Market Square', 'Hospital Junction'],
-    route: 'Central → Market → Hospital → College → University'
+    next_available: '5 mins',
+    stands: ['Central Bus Stand', 'Market Square', 'Hospital Junction']
   },
   {
     id: '2',
     type: 'auto' as const,
     name: 'Auto Rickshaw',
-    from: 'Market Square',
-    to: 'University Campus',
+    route: 'Market Square → Main Road → University Campus',
+    current_location: { lat: 12.9742, lng: 77.5952 },
     price: 45,
     duration: '15 mins',
-    nextAvailable: '2 mins',
-    stands: ['Market Auto Stand', 'Railway Station', 'Bus Stand'],
-    route: 'Market → Main Road → University'
+    next_available: '2 mins',
+    stands: ['Market Auto Stand', 'Railway Station', 'Bus Stand']
   },
   {
     id: '3',
     type: 'cab' as const,
     name: 'Shared Taxi',
-    from: 'Railway Station',
-    to: 'University Campus',
+    route: 'Railway Station → Highway → University Gate',
+    current_location: { lat: 12.9698, lng: 77.5938 },
     price: 35,
     duration: '20 mins',
-    nextAvailable: '8 mins',
-    stands: ['Railway Taxi Stand', 'Airport Road', 'City Center'],
-    route: 'Railway → Highway → University Gate'
+    next_available: '8 mins',
+    stands: ['Railway Taxi Stand', 'Airport Road', 'City Center']
   }
 ];
 
@@ -63,15 +52,39 @@ const Index = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [searchFrom, setSearchFrom] = useState('');
   const [searchTo, setSearchTo] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAuth();
+    
+    // Listen for auth changes
+    const { data: { subscription } } = authService.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        checkAuth();
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAuth = async () => {
+    const currentUser = await authService.getCurrentUser();
+    setUser(currentUser);
+  };
 
   const handleSearch = () => {
     if (!searchFrom || !searchTo) {
       alert('Please enter both source and destination');
       return;
     }
-    // Mock search functionality
-    console.log('Searching from', searchFrom, 'to', searchTo);
+    navigate('/search');
+  };
+
+  const handleGetStarted = () => {
+    navigate('/home');
   };
 
   return (
@@ -84,18 +97,23 @@ const Index = () => {
             <h1 className="text-xl font-bold text-foreground">CityMove</h1>
           </div>
           
-          {!isLoggedIn ? (
-            <Button onClick={() => setIsAuthOpen(true)}>
-              Login
-            </Button>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">Welcome back!</span>
-              <Button variant="outline" onClick={() => setIsLoggedIn(false)}>
-                Logout
+          <div className="flex items-center space-x-2">
+            {!user ? (
+              <Button onClick={() => setIsAuthOpen(true)}>
+                Login
               </Button>
-            </div>
-          )}
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => navigate('/profile')}>
+                  <User className="h-4 w-4 mr-1" />
+                  Profile
+                </Button>
+                <Button onClick={handleGetStarted}>
+                  Get Started
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -192,7 +210,7 @@ const Index = () => {
         isOpen={isAuthOpen} 
         onClose={() => setIsAuthOpen(false)}
         onLoginSuccess={() => {
-          setIsLoggedIn(true);
+          checkAuth();
           setIsAuthOpen(false);
         }}
       />
